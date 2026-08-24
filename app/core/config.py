@@ -9,12 +9,14 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 10000
 
+    # Use the existing Qdrant collection.
     qdrant_collection: str = "software_docs"
     qdrant_url: str = "http://localhost:6333"
     qdrant_api_key: str = ""
 
+    # Hugging Face Inference Providers / OpenAI-compatible API.
     hf_token: str = ""
-    hf_model: str = "mistralai/Mistral-7B-Instruct-v0.3"
+    hf_model: str = "google/gemma-2-2b-it:fastest"
     hf_base_url: str = "https://router.huggingface.co/v1"
     hf_max_new_tokens: int = 512
 

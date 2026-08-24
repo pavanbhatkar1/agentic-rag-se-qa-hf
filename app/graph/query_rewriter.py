@@ -12,7 +12,6 @@ class QueryRewriter:
 
     def rewrite(self, state: GraphState) -> GraphState:
         documents = state["documents"]
-
         context = "\n\n".join(
             f"Document {i + 1}:\n{doc['content']}"
             for i, doc in enumerate(documents)
@@ -34,8 +33,8 @@ The retrieved evidence was insufficient.
 
 Rewrite the original question into a more precise search query.
 Use useful technical terms from the retrieved evidence when appropriate.
-Focus on relevant APIs, classes, functions, configuration, implementation
-details, filenames, or error messages.
+Focus on relevant APIs, classes, functions, configuration, implementation details,
+filenames, or error messages.
 
 Do not change the user's intent.
 Do not answer the question.
@@ -45,11 +44,7 @@ Return ONLY the rewritten retrieval query.
 Rewritten query:
 """
 
-        rewritten_query = self.llm.generate(prompt).strip()
-
-        if not rewritten_query:
-            rewritten_query = state["question"]
-
+        rewritten_query = self.llm.generate(prompt).strip() or state["question"]
         rewritten_query = " ".join(rewritten_query.split())[: self.MAX_QUERY_LENGTH].strip()
 
         return {

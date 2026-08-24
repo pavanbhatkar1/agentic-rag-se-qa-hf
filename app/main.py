@@ -10,7 +10,6 @@ from app.core.config import settings
 from app.core.logging import logger, setup_logging
 from app.core.qdrant import client
 
-
 setup_logging()
 
 
@@ -28,22 +27,19 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 app.include_router(router)
 
 
 @app.get("/health", tags=["Health"])
 async def health():
-    logger.info("Health check requested")
     return {
         "status": "healthy",
         "environment": settings.app_env,
@@ -51,15 +47,11 @@ async def health():
     }
 
 
-@app.get("/app", include_in_schema=False)
-async def frontend():
-    return FileResponse(
-        Path(__file__).resolve().parent.parent / "frontend" / "index.html"
-    )
-
-
 @app.get("/", tags=["Root"])
 async def root():
-    return {
-        "message": f"Welcome to {settings.app_name}"
-    }
+    return {"message": f"Welcome to {settings.app_name}"}
+
+
+frontend_dir = Path(__file__).resolve().parent.parent / "frontend"
+if (frontend_dir / "index.html").exists():
+    app.mount("/app", StaticFiles(directory=frontend_dir, html=True), name="frontend")

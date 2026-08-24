@@ -1,5 +1,5 @@
 from app.graph.state import GraphState
-from app.llm.ollama_client import OllamaClient
+from app.llm.huggingface_client import HuggingFaceClient
 from app.rag.prompt_builder import PromptBuilder
 from app.retrieval.reranker import BGEReranker
 from app.vectorstore.retriever import Retriever
@@ -12,7 +12,7 @@ class GraphNodes:
     def __init__(
         self,
         retriever: Retriever,
-        llm: OllamaClient,
+        llm: HuggingFaceClient,
         reranker: BGEReranker | None = None,
         web_searcher: WebSearcher | None = None,
     ):
@@ -23,11 +23,7 @@ class GraphNodes:
         self.prompt_builder = PromptBuilder()
 
     def retrieve_node(self, state: GraphState) -> GraphState:
-        query = (
-            state["rewritten_query"]
-            if state["rewritten_query"]
-            else state["question"]
-        )
+        query = state["rewritten_query"] if state["rewritten_query"] else state["question"]
 
         if state["route"] == "complex":
             retrieval_k = 20
@@ -36,25 +32,12 @@ class GraphNodes:
             retrieval_k = 10
             rerank_k = 5
 
-        documents = self.retriever.search(
-            query=query,
-            top_k=retrieval_k,
-        )
+        documents = self.retriever.search(query=query, top_k=retrieval_k)
+        documents = self.reranker.rerank(query=query, documents=documents, top_k=rerank_k)
 
-        documents = self.reranker.rerank(
-            query=query,
-            documents=documents,
-            top_k=rerank_k,
-        )
-
-        return {
-            **state,
-            "documents": documents,
-        }
+        return {**state, "documents": documents}
 
     def direct_generate_node(self, state: GraphState) -> GraphState:
-        """Generate an answer without repository retrieval."""
-
         prompt = f"""
 Answer the following question using your general knowledge.
 
@@ -64,39 +47,15 @@ Question:
 Give a concise and accurate answer in 3-6 short sentences or bullets.
 Do not restate the question and do not repeat information.
 """
-
-        answer = self.llm.generate(prompt)
-
-        return {
-            **state,
-            "answer": answer,
-        }
+        return {**state, "answer": self.llm.generate(prompt)}
 
     def web_search_node(self, state: GraphState) -> GraphState:
-        """Search the web when repository evidence is insufficient."""
-
-        query = (
-            state["rewritten_query"]
-            if state["rewritten_query"]
-            else state["question"]
-        )
-
+        query = state["rewritten_query"] if state["rewritten_query"] else state["question"]
         web_documents = self.web_searcher.search(query)
-
-        return {
-            **state,
-            "web_documents": web_documents,
-            "web_search_used": True,
-        }
+        return {**state, "web_documents": web_documents, "web_search_used": True}
 
     def generate_node(self, state: GraphState) -> GraphState:
-        """Generate an answer using repository and/or web evidence."""
-
-        repository_context = "\n\n".join(
-            doc["content"]
-            for doc in state["documents"]
-        )
-
+        repository_context = "\n\n".join(doc["content"] for doc in state["documents"])
         web_context = "\n\n".join(
             f"Title: {doc['title']}\nURL: {doc['url']}\nContent: {doc['content']}"
             for doc in state["web_documents"]
@@ -121,8 +80,7 @@ Rules:
 - Prefer repository evidence when it directly answers the question.
 - Use web evidence when repository evidence is insufficient.
 - Do not invent implementation details.
-- If the evidence does not contain the requested information,
-  clearly say that it could not be found.
+- If the evidence does not contain the requested information, clearly say that it could not be found.
 
 Question:
 {state["question"]}
@@ -130,14 +88,6 @@ Question:
 Answer:
 """
         else:
-            prompt = self.prompt_builder.build(
-                question=state["question"],
-                documents=state["documents"],
-            )
+            prompt = self.prompt_builder.build(question=state["question"], documents=state["documents"])
 
-        answer = self.llm.generate(prompt)
-
-        return {
-            **state,
-            "answer": answer,
-        }
+        return {**state, "answer": self.llm.generate(prompt)}

@@ -1,5 +1,5 @@
 from app.graph.state import GraphState
-from app.llm.ollama_client import OllamaClient
+from app.llm.huggingface_client import HuggingFaceClient
 
 
 class QueryRewriter:
@@ -7,7 +7,7 @@ class QueryRewriter:
 
     MAX_QUERY_LENGTH = 800
 
-    def __init__(self, llm: OllamaClient):
+    def __init__(self, llm: HuggingFaceClient):
         self.llm = llm
 
     def rewrite(self, state: GraphState) -> GraphState:
@@ -47,12 +47,9 @@ Rewritten query:
 
         rewritten_query = self.llm.generate(prompt).strip()
 
-        # Fallback if the LLM returns an empty response.
         if not rewritten_query:
             rewritten_query = state["question"]
 
-        # Keep downstream vector/web retrieval bounded even if the model
-        # ignores the length instruction.
         rewritten_query = " ".join(rewritten_query.split())[: self.MAX_QUERY_LENGTH].strip()
 
         return {

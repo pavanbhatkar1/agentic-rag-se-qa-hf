@@ -10,7 +10,7 @@ from app.graph.query_rewriter import QueryRewriter
 from app.graph.retrieval_grader import RetrievalGrader
 from app.graph.router import QueryRouter
 from app.graph.workflow import GraphWorkflow
-from app.llm.ollama_client import OllamaClient
+from app.llm.huggingface_client import HuggingFaceClient
 from app.rag.rag_pipeline import RAGPipeline
 from app.retrieval.reranker import BGEReranker
 from app.vectorstore.qdrant_client import QdrantDB
@@ -21,7 +21,7 @@ router = APIRouter()
 
 
 def build_pipeline() -> RAGPipeline:
-    """Build the Agentic RAG pipeline."""
+    """Build the Agentic RAG pipeline using Hugging Face inference."""
 
     db = QdrantDB(
         url=settings.qdrant_url,
@@ -36,10 +36,7 @@ def build_pipeline() -> RAGPipeline:
     )
 
     reranker = BGEReranker()
-
-    llm = OllamaClient(
-        model=settings.ollama_model,
-    )
+    llm = HuggingFaceClient(model=settings.hf_model)
 
     nodes = GraphNodes(
         retriever=retriever,
@@ -91,13 +88,9 @@ def query(request: dict):
     try:
         result = get_pipeline().run(question)
     except Exception as exc:
-        # Always return JSON so the frontend can display a useful error
-        # instead of failing while parsing FastAPI's plain-text 500 page.
         return JSONResponse(
             status_code=500,
-            content={
-                "detail": f"Pipeline execution failed: {exc}",
-            },
+            content={"detail": f"Pipeline execution failed: {exc}"},
         )
 
     latency_ms = round((time.perf_counter() - started) * 1000, 2)

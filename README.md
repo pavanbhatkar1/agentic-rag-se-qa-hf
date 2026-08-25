@@ -1,774 +1,385 @@
-# 🤖 Agentic RAG for Software Engineering QA
+# 🤖 Agentic RAG for Software Engineering QA — Hugging Face Deployment
 
-An **Agentic Retrieval-Augmented Generation (RAG)** system for answering software engineering questions using technical documentation and open-source source code.
+An **Agentic Retrieval-Augmented Generation (RAG)** system for answering software-engineering questions over source code and technical documentation.
 
-The system combines **LangGraph-based agentic routing, Qdrant retrieval, query rewriting, retrieval grading, reranking, web-search fallback, and Mistral 7B** to produce context-aware answers.
+This deployment version keeps the working RAG architecture intact while replacing the locally hosted Ollama/Mistral generation layer with the **Hugging Face Inference API**.
 
-A **Streamlit frontend** provides a visual execution trace so users can see how the agent routes a question, retrieves repository context, evaluates retrieval quality, retries when necessary, and optionally uses web search.
+## 🏗️ System Architecture
 
----
+![Agentic RAG System Architecture](docs/architecture.svg)
+
+The system follows this flow:
+
+```text
+User
+  ↓
+Lovable Frontend
+  ↓
+FastAPI /query
+  ↓
+LangGraph Workflow
+  ↓
+Query Router
+  ├── DIRECT ───────────────→ LLM
+  └── RETRIEVE / COMPLEX
+             ↓
+        Query Embedding
+             ↓
+           Qdrant
+             ↓
+        BGE Reranker
+             ↓
+      Retrieval Grader
+        ├── GOOD ───────────→ Generate
+        └── PARTIAL / BAD
+                  ↓
+             Query Rewrite
+                  ↓
+             Re-retrieval
+                  ↓
+          Still insufficient?
+                  ↓
+             Tavily Search
+                  ↓
+               Generate
+                  ↓
+            JSON Response
+```
 
 ## ✨ Features
 
-- 🧭 **Agentic Query Routing**
-  - Direct path for simple/general questions
-  - Retrieval path for repository-related questions
-  - Complex path for deeper investigation
+- 🧭 **Agentic Query Routing** — direct, retrieve, and complex paths
+- 🔎 **Semantic Repository Retrieval** using sentence-transformer embeddings and Qdrant
+- 🎯 **BGE Cross-Encoder Reranking** for improved relevance
+- 🧪 **Retrieval Grading** to detect weak context
+- 🔄 **Corrective RAG** with query rewriting and retry
+- 🌐 **Tavily Web Search Fallback** when repository evidence is insufficient
+- 🤗 **Hugging Face Inference API** for hosted LLM generation
+- ⚡ **FastAPI REST API** backend
+- 🎨 **Lovable React/Vite Frontend** with execution trace and retrieval details
+- 🐳 **Docker** support
+- 📊 **RAGAS evaluation** for answer relevancy, faithfulness, and context precision
 
-- 🔎 **Retrieval-Augmented Generation**
-  - Dense vector retrieval from Qdrant
-  - Repository documentation and source-code retrieval
-  - Embedding-based semantic search
-  - BGE-based reranking
+## 🧠 Agentic RAG Workflow
 
-- 🎯 **Corrective Retrieval**
-  - Retrieval relevance grading
-  - Low-quality retrieval detection
-  - Query rewriting
-  - Retrieval retry
-
-- 🌐 **Web Search Fallback**
-  - Uses Tavily when repository retrieval is insufficient
-  - Helps answer questions requiring information outside the indexed repository
-
-- 🧠 **Local LLM**
-  - Mistral 7B through Ollama
-
-- ⚡ **FastAPI REST API**
-  - Exposes the RAG pipeline through an HTTP API
-
-- 🎨 **Streamlit Frontend**
-  - Clean question-answering interface
-  - Agent execution trace
-  - Retrieval statistics
-  - Retrieved source files
-  - Query rewrite visibility
-  - Web-search visibility
-  - Developer/debug information
-
-- 🐳 **Docker Support**
-  - Dockerized FastAPI application
-  - Docker Compose configuration for Qdrant
-
-- 📊 **Evaluation**
-  - Benchmark runner
-  - Latency tracking
-  - RAGAS evaluator for:
-    - Answer Relevancy
-    - Faithfulness
-    - Context Precision
-
----
-
-# 🏗️ Architecture
+A traditional RAG system usually follows:
 
 ```text
-                         ┌─────────────────────┐
-                         │  Streamlit Frontend │
-                         └──────────┬──────────┘
-                                    │
-                                    ▼
-                         ┌─────────────────────┐
-                         │    FastAPI REST API │
-                         └──────────┬──────────┘
-                                    │
-                                    ▼
-                         ┌─────────────────────┐
-                         │    RAG Pipeline     │
-                         └──────────┬──────────┘
-                                    │
-                                    ▼
-                         ┌─────────────────────┐
-                         │   LangGraph Agent   │
-                         └──────────┬──────────┘
-                                    │
-                         ┌──────────┴──────────┐
-                         ▼                     ▼
-                  ┌─────────────┐       ┌─────────────┐
-                  │ Query Router│       │ Direct Path │
-                  └──────┬──────┘       └─────────────┘
-                         │
-                         ▼
-                  ┌─────────────┐
-                  │   Qdrant    │
-                  │   Retrieval │
-                  └──────┬──────┘
-                         │
-                         ▼
-                  ┌─────────────┐
-                  │ BGE Reranker│
-                  └──────┬──────┘
-                         │
-                         ▼
-                  ┌─────────────┐
-                  │ Retrieval   │
-                  │   Grader    │
-                  └──────┬──────┘
-                         │
-                    Relevant?
-                    /       \
-                  Yes        No
-                   │          │
-                   │          ▼
-                   │    ┌──────────────┐
-                   │    │ Query Rewrite│
-                   │    └──────┬───────┘
-                   │           │
-                   │           ▼
-                   │     Re-retrieval
-                   │
-                   └──────┬────────────┘
-                          │
-                   Still insufficient?
-                          │
-                          ▼
-                   ┌─────────────┐
-                   │ Tavily Web  │
-                   │   Search    │
-                   └──────┬──────┘
-                          │
-                          ▼
-                   ┌─────────────┐
-                   │ Mistral 7B  │
-                   │   Ollama    │
-                   └──────┬──────┘
-                          │
-                          ▼
-                   ┌─────────────┐
-                   │ Final Answer│
-                   └─────────────┘
+Question → Retrieve → Generate
 ```
 
----
-
-# 🔄 Query Flow
-
-For a repository-related question:
-
-```text
-User Question
-      │
-      ▼
-Query Router
-      │
-      ▼
-Repository Retrieval
-      │
-      ▼
-Reranking
-      │
-      ▼
-Retrieval Grader
-      │
-      ├── Relevant ──────────────► Answer Generation
-      │
-      └── Not Relevant
-                │
-                ▼
-          Query Rewriting
-                │
-                ▼
-           Re-retrieval
-                │
-                ├── Relevant ────► Answer Generation
-                │
-                └── Still weak
-                        │
-                        ▼
-                  Tavily Web Search
-                        │
-                        ▼
-                  Answer Generation
-```
-
-For a simple general question:
-
-```text
-User Question
-      │
-      ▼
-Query Router
-      │
-      ▼
-DIRECT
-      │
-      ▼
-Answer Generation
-```
-
----
-
-# 🧩 Tech Stack
-
-## LLM
-
-- **Mistral 7B**
-- **Ollama**
-
-## Agent / RAG Framework
-
-- **LangGraph**
-- **LangChain**
-
-## Backend
-
-- **FastAPI**
-- **Uvicorn**
-- REST API
-
-## Vector Retrieval
-
-- **Qdrant**
-- Sentence-transformer embeddings
-- **BGE Cross-Encoder Reranker**
-
-## Web Search
-
-- **Tavily**
-
-## Frontend
-
-- **Streamlit**
-
-## Code / Document Processing
-
-- Repository indexing
-- Documentation and source-code chunking
-- AST-aware code processing
-
-## Evaluation
-
-- **RAGAS**
-- Benchmark runner
-- Latency measurement
-
-## Infrastructure
-
-- **Docker**
-- **Docker Compose**
-
----
-
-# 📁 Project Structure
-
-```text
-agentic-rag-se-qa/
-│
-├── app/
-│   ├── agents/
-│   ├── api/
-│   │   └── routes.py
-│   ├── core/
-│   │   ├── config.py
-│   │   └── qdrant.py
-│   ├── embeddings/
-│   ├── evaluation/
-│   │   ├── benchmark.py
-│   │   └── ragas_evaluator.py
-│   ├── graph/
-│   │   ├── nodes.py
-│   │   ├── query_rewriter.py
-│   │   ├── retrieval_grader.py
-│   │   ├── router.py
-│   │   ├── state.py
-│   │   └── workflow.py
-│   ├── ingestion/
-│   ├── llm/
-│   │   └── ollama_client.py
-│   ├── models/
-│   ├── prompts/
-│   ├── rag/
-│   │   └── rag_pipeline.py
-│   ├── retrieval/
-│   ├── services/
-│   ├── vectorstore/
-│   │   └── qdrant_client.py
-│   ├── websearch/
-│   │   └── web_searcher.py
-│   ├── main.py
-│   └── streamlit_app.py
-│
-├── data/
-│   ├── benchmark.json
-│   └── raw/
-│       └── repos/
-│
-├── docker/
-├── scripts/
-│   └── index_repository.py
-│
-├── Dockerfile
-├── docker-compose.yml
-├── requirements.txt
-├── .env
-└── README.md
-```
-
----
-
-# ⚙️ How the System Works
-
-### 1. Repository Ingestion
-
-Technical documentation and source code are collected from the target repository.
-
-### 2. Chunking
-
-The repository is split into useful chunks so that individual pieces of documentation and code can be retrieved.
-
-### 3. Embeddings
-
-Chunks are converted into vector representations using the configured embedding model.
-
-### 4. Vector Storage
-
-Embeddings and their associated content are stored in **Qdrant**.
-
-### 5. Query Routing
-
-The LangGraph router decides whether the question should:
-
-- take the direct path, or
-- use repository retrieval.
-
-### 6. Retrieval
-
-For retrieval-based questions, relevant repository chunks are retrieved from Qdrant.
-
-### 7. Reranking
-
-Retrieved candidates can be reranked using a BGE cross-encoder to improve relevance.
-
-### 8. Retrieval Grading
-
-The retrieval grader evaluates whether the retrieved context is useful for answering the question.
-
-### 9. Query Rewriting
-
-If retrieval quality is insufficient, the agent can rewrite the query and retry retrieval.
-
-### 10. Web Search
-
-If the available repository context is still insufficient, the system can use Tavily web search.
-
-### 11. Answer Generation
-
-The collected context is passed to **Mistral 7B through Ollama**, which generates the final answer.
-
----
-
-# 🎨 Streamlit Frontend
-
-The frontend is designed to make the agent's reasoning flow visible.
-
-It displays:
+This project adds adaptive decisions and recovery:
 
 ```text
 Question
    ↓
 Query Router
    ↓
-Vector Retrieval
+Retrieve
    ↓
-Retrieval Grader
+Rerank
    ↓
-Query Rewrite / Retry
+Grade retrieval
    ↓
-Web Search (when needed)
+Good? ───────────────→ Generate
+   │
+   No
    ↓
-Final Answer
+Rewrite query
+   ↓
+Retry retrieval
+   ↓
+Still weak?
+   │
+   Yes
+   ↓
+Tavily Web Search
+   ↓
+Generate
 ```
 
-The interface also exposes:
+That decision-making and retry behavior is what makes the pipeline **agentic** rather than a fixed retrieve-and-generate chain.
 
-- Selected route
-- Number of retrieved documents
-- Retrieval score
-- Retry count
-- Web-search usage
-- Retrieved repository sources
-- Optional retrieved context
-- Rewritten query
-- Web-search sources
-- Developer/debug information
+## 🔍 Retrieval Pipeline
 
-This makes it easier to demonstrate the system during development and technical interviews.
+### 1. Repository ingestion
 
----
+Source code and documentation are collected from the target repository.
 
-# 🚀 Installation
+### 2. Code-aware chunking
 
-Clone the repository:
+Python files can be split around semantic units such as classes and functions rather than relying only on arbitrary text boundaries.
+
+### 3. Embeddings
+
+Chunks are converted into vector representations using the configured BGE embedding model.
+
+### 4. Qdrant retrieval
+
+Embeddings and metadata are stored in the existing `software_docs` collection. Query-time semantic search retrieves candidate chunks.
+
+### 5. Reranking
+
+A BGE cross-encoder reranks the retrieved candidates using query-document relevance.
+
+### 6. Retrieval grading
+
+The grader classifies context as `GOOD`, `PARTIAL`, or `BAD`.
+
+### 7. Query rewriting
+
+Weak retrieval triggers a technically focused query rewrite followed by another retrieval attempt.
+
+### 8. Web fallback
+
+If repository context remains insufficient, Tavily can provide external information before final generation.
+
+## 🤗 Hugging Face LLM
+
+The HF deployment replaces the local model server:
+
+```text
+Original:
+LangGraph → Ollama → Mistral 7B
+
+Deployment:
+LangGraph → HuggingFaceClient → Hugging Face Inference API
+```
+
+The Hugging Face client uses the OpenAI-compatible inference endpoint:
+
+```text
+https://router.huggingface.co/v1
+```
+
+Configure the hosted model through environment variables instead of committing credentials.
+
+## 🗄️ Existing Qdrant Collection
+
+The deployment is designed to use the existing collection:
+
+```text
+software_docs
+```
+
+No new collection is required and the indexed vectors do not need to be re-created merely because the LLM provider changed.
+
+For a cloud deployment, `QDRANT_URL` must point to a Qdrant instance reachable from the deployed backend; `localhost:6333` only works when Qdrant is running on the same machine.
+
+## ⚙️ Environment Variables
+
+Create a local `.env` file or configure these as deployment secrets:
+
+```env
+HF_TOKEN=your_huggingface_token
+HF_MODEL=google/gemma-2-2b-it
+HF_BASE_URL=https://router.huggingface.co/v1
+HF_MAX_NEW_TOKENS=512
+
+QDRANT_URL=your_qdrant_url
+QDRANT_API_KEY=your_qdrant_api_key
+QDRANT_COLLECTION=software_docs
+
+TAVILY_API_KEY=your_tavily_api_key
+```
+
+**Never commit real API keys or tokens to GitHub.**
+
+## 🚀 Run Locally
+
+Clone the deployment repository:
 
 ```bash
-git clone https://github.com/pavanbhatkar1/agentic-rag-se-qa.git
-cd agentic-rag-se-qa
+git clone https://github.com/pavanbhatkar1/agentic-rag-se-qa-hf.git
+cd agentic-rag-se-qa-hf
 ```
 
-Create a virtual environment:
-
-```bash
-python -m venv .venv1
-```
-
-### Windows
-
-```powershell
-.\.venv1\Scripts\Activate.ps1
-```
-
-### Linux / macOS
-
-```bash
-source .venv1/bin/activate
-```
-
-Install dependencies:
+Create and activate the Python environment, then install dependencies:
 
 ```bash
 python -m pip install -r requirements.txt
 ```
 
----
-
-# 🔐 Environment Configuration
-
-Create a `.env` file in the project root.
-
-Example:
-
-```env
-QDRANT_COLLECTION=software_docs
-
-QDRANT_URL=http://localhost:6333
-QDRANT_API_KEY=
-
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=mistral:7b
-
-TAVILY_API_KEY=
-```
-
-> Do not commit `.env` or API keys to GitHub.
-
-For a Dockerized FastAPI container connecting to Qdrant and a locally running Ollama instance, the container can use:
-
-```text
-QDRANT_URL=http://qdrant:6333
-OLLAMA_BASE_URL=http://host.docker.internal:11434
-```
-
----
-
-# 🗄️ Start Qdrant
-
-The project includes a Docker Compose configuration for Qdrant.
+Run FastAPI:
 
 ```powershell
-docker compose up -d qdrant
+uvicorn main:app --reload --host 0.0.0.0 --port 10000
 ```
 
-Check running containers:
+Run the frontend in another terminal:
 
 ```powershell
-docker ps
-```
-
-Qdrant is exposed on:
-
-```text
-http://localhost:6333
-```
-
----
-
-# 📚 Index the Repository
-
-Use the repository indexing script:
-
-```powershell
-python .\scripts\index_repository.py
-```
-
-The indexed documents are stored in the configured Qdrant collection.
-
----
-
-# ⚡ Run FastAPI
-
-Run the backend locally:
-
-```powershell
-python -m uvicorn app.main:app --reload --port 10000
-```
-
-API:
-
-```text
-http://localhost:10000
-```
-
-Swagger documentation:
-
-```text
-http://localhost:10000/docs
-```
-
----
-
-# 🎨 Run Streamlit
-
-From the project root:
-
-```powershell
-python -m streamlit run .\app\streamlit_app.py --server.port 8502
+cd lovable-frontend
+npm install
+npm run dev
 ```
 
 Open:
 
 ```text
-http://localhost:8502
+http://localhost:5173
 ```
 
----
-
-# 🐳 Run with Docker
-
-Build the application image:
-
-```powershell
-docker build -t agentic-rag .
-```
-
-The FastAPI container needs access to Qdrant and Ollama.
-
-Example:
-
-```powershell
-docker run --rm `
-  --network agentic-rag-se-qa_default `
-  -p 10000:8000 `
-  --env-file .env `
-  -e QDRANT_URL=http://qdrant:6333 `
-  -e OLLAMA_BASE_URL=http://host.docker.internal:11434 `
-  agentic-rag
-```
-
-The Dockerized API is then available at:
+Backend API:
 
 ```text
 http://localhost:10000
 ```
 
----
+Swagger:
 
-# 🔌 API
+```text
+http://localhost:10000/docs
+```
 
-The main API exposes the RAG pipeline through a query endpoint.
+## 🔌 API
 
-### POST `/query`
+### `POST /query`
 
-Example:
+Request:
 
 ```json
 {
-  "question": "How does FastAPI define an API route?"
+  "question": "How is the QueryRouter class implemented in this project?"
 }
 ```
 
-Example response structure:
+The response contains the generated answer plus execution metadata such as:
 
 ```json
 {
-  "answer": "FastAPI defines routes using path operation decorators...",
+  "answer": "...",
   "route": "retrieve",
+  "documents": [],
   "retrieval_score": 1.0,
+  "retry_count": 0,
   "web_search_used": false,
-  "retry_count": 0
+  "latency_ms": 1234.5
 }
 ```
 
----
+## 🧩 Tech Stack
 
-# 📊 Evaluation
+| Layer | Technology |
+|---|---|
+| Frontend | React, Vite, TypeScript, Lovable UI |
+| API | FastAPI, Uvicorn |
+| Agent orchestration | LangGraph |
+| Vector database | Qdrant |
+| Embeddings | Sentence Transformers / BGE |
+| Reranking | BGE Cross-Encoder |
+| LLM | Hugging Face Inference API |
+| Web fallback | Tavily |
+| Evaluation | RAGAS |
+| Containerization | Docker |
 
-The project contains two evaluation components:
+## 📁 Important Project Files
 
 ```text
-app/evaluation/
-├── benchmark.py
-└── ragas_evaluator.py
+app/
+├── api/routes.py
+├── core/config.py
+├── embeddings/
+├── graph/
+│   ├── nodes.py
+│   ├── query_rewriter.py
+│   ├── retrieval_grader.py
+│   ├── router.py
+│   ├── state.py
+│   └── workflow.py
+├── llm/
+│   └── huggingface_client.py
+├── rag/
+│   └── rag_pipeline.py
+├── retrieval/
+├── vectorstore/
+└── websearch/
+
+lovable-frontend/
+├── src/
+├── package.json
+└── vite.config.ts
+
+scripts/
+└── index_repository.py
+
+Dockerfile
+requirements.txt
+README.md
 ```
 
-### Benchmark
+## 🧪 Example Questions
 
-The benchmark runner records:
+### Direct LLM
 
-- Question
-- Ground truth
-- Generated answer
-- Retrieved contexts
+```text
+What is the difference between REST API and GraphQL?
+```
+
+Expected: `DIRECT` path.
+
+### Repository retrieval
+
+```text
+How is the QueryRouter class implemented in this project?
+```
+
+Expected: repository retrieval with sources such as `app/graph/router.py`.
+
+### Multi-document retrieval
+
+```text
+Explain the architecture of this project and how the RAG workflow works.
+```
+
+Expected: multiple repository documents and a grounded answer.
+
+### Corrective RAG
+
+```text
+How does the system handle irrelevant retrieved context?
+```
+
+Expected: retrieval grading → query rewrite → retry when necessary.
+
+### Web fallback
+
+```text
+What are the latest changes introduced in Python 3.14?
+```
+
+This can exercise the external web-search fallback when repository context is insufficient.
+
+## 📊 Evaluation
+
+The project includes benchmark and RAGAS evaluation support for:
+
+- Answer Relevancy
+- Faithfulness
+- Context Precision
 - Latency
-- Route
-- Retrieval score
-- Retry count
-- Web-search usage
 
-Results are written to:
+## 🎯 Interview Summary
+
+The core design can be summarized as:
 
 ```text
-data/benchmark_results.json
+FastAPI      = API boundary
+LangGraph    = orchestration
+GraphState   = shared workflow state
+QueryRouter  = routing decision
+Qdrant       = vector retrieval
+BGE Embedder = semantic representation
+BGE Reranker = relevance ranking
+Grader       = retrieval validation
+Rewriter     = corrective retrieval
+Tavily       = external fallback
+HF API       = hosted LLM generation
+Frontend     = workflow visualization
+RAGAS        = evaluation
+Docker       = deployment packaging
 ```
 
-### RAGAS
-
-The RAGAS evaluator currently uses:
-
-- **Answer Relevancy**
-- **Faithfulness**
-- **Context Precision**
-
-The benchmark dataset and evaluation setup are intentionally kept as-is for now and can be updated with finalized benchmark results later.
-
----
-
-# 📈 Results
-
-> **Benchmark results will be updated after the current benchmark run is finalized.**
-
-Current evaluation results are intentionally not listed here yet.
-
-The project is set up to report:
-
-| Metric | Result |
-|---|---:|
-| Answer Relevancy | TBD |
-| Faithfulness | TBD |
-| Context Precision | TBD |
-| Average Latency | TBD |
-
----
-
-# 🧪 Example Questions
-
-### Repository Retrieval
-
-```text
-How does FastAPI define an API route?
-```
-
-Expected behavior:
-
-```text
-Router
-  ↓
-Retrieve
-  ↓
-Qdrant
-  ↓
-Retrieval Grader
-  ↓
-Mistral
-```
-
-### Direct Question
-
-```text
-What is 2 + 2?
-```
-
-Expected behavior:
-
-```text
-Router
-  ↓
-Direct
-  ↓
-Mistral
-```
-
-### Difficult / Insufficient Retrieval
-
-A question that cannot be sufficiently answered from the indexed repository can trigger:
-
-```text
-Retrieve
-   ↓
-Low relevance
-   ↓
-Query Rewrite
-   ↓
-Retry
-   ↓
-Web Search
-   ↓
-Answer
-```
-
----
-
-# 🧠 Why Agentic RAG?
-
-A traditional RAG pipeline generally follows:
-
-```text
-Question
-   ↓
-Retrieve
-   ↓
-Generate
-```
-
-This project adds decision-making around retrieval:
-
-```text
-Question
-   ↓
-Should retrieval be used?
-   ↓
-Retrieve
-   ↓
-Is the context relevant?
-   ↓
-No ──► Rewrite ──► Retry
-                 ↓
-             Still weak?
-                 ↓
-             Web Search
-                 ↓
-              Generate
-```
-
-This allows the system to adapt its retrieval strategy instead of blindly generating an answer from the first retrieved documents.
-
----
-
-# 🎯 Resume Highlights
-
-- Developed an **Agentic RAG system for software engineering question answering** over technical documentation and open-source code repositories.
-- Implemented **LangGraph-based query routing, retrieval grading, query rewriting, and retry workflows**.
-- Integrated **Qdrant vector search, embedding-based retrieval, and BGE reranking** for repository-level context retrieval.
-- Added **Tavily web-search fallback** when repository context is insufficient.
-- Integrated **Mistral 7B through Ollama** for local answer generation.
-- Built a **FastAPI REST API** and **Streamlit frontend** for interactive question answering and agent execution visualization.
-- Containerized the backend using **Docker** and configured Qdrant using Docker Compose.
-- Implemented benchmark and **RAGAS evaluation** for answer relevancy, faithfulness, context precision, and latency.
-
----
-
-# 🔮 Future Improvements
-
-- Finalize and expand benchmark evaluation
-- Multi-repository indexing
-- Streaming responses
-- GitHub repository integration
-- Incremental repository indexing
-- Support for additional LLMs
-- Improved observability and tracing
-- Production cloud deployment
-
----
-
-# 📄 License
+## 📄 License
 
 This project is intended for educational and research purposes.

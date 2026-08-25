@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1050" viewBox="0 0 1600 1050">
+<rect width="1600" height="1050" fill="#fff"/>
+<text x="800" y="42" text-anchor="middle" font-family="Arial,sans-serif" font-size="28" font-weight="700">Agentic RAG for Software Engineering QA – System Architecture</text>
+<style>
+.box{fill:#f8fbff;stroke:#5b7bb2;stroke-width:2}.orch{fill:#fff7df;stroke:#c39b2f;stroke-width:2}.dec{fill:#f1ddff;stroke:#8b4fb3;stroke-width:2}.mem{fill:#eee6ff;stroke:#8064a8;stroke-width:2}.tool{fill:#eef8e8;stroke:#78a35b;stroke-width:2}.out{fill:#ffe8e8;stroke:#d45b5b;stroke-width:2}.txt{font-family:Arial,sans-serif;font-size:16px;fill:#111}.title{font-family:Arial,sans-serif;font-size:18px;font-weight:700;fill:#111}.small{font-family:Arial,sans-serif;font-size:14px;fill:#333}.arrow{stroke:#333;stroke-width:2;fill:none;marker-end:url(#a)}
+</style>
+<defs><marker id="a" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L10,3 L0,6 z" fill="#333"/></marker></defs>
+<!-- top -->
+<rect x="45" y="90" width="190" height="85" rx="14" class="box"/><text x="140" y="125" text-anchor="middle" class="title">Frontend</text><text x="140" y="150" text-anchor="middle" class="small">Lovable React UI</text>
+<rect x="285" y="90" width="210" height="85" rx="14" class="box"/><text x="390" y="125" text-anchor="middle" class="title">FastAPI Backend</text><text x="390" y="150" text-anchor="middle" class="small">POST /query</text>
+<rect x="545" y="90" width="220" height="85" rx="14" class="orch"/><text x="655" y="125" text-anchor="middle" class="title">RAG Pipeline</text><text x="655" y="150" text-anchor="middle" class="small">LangGraph orchestration</text>
+<rect x="815" y="90" width="260" height="85" rx="14" class="orch"/><text x="945" y="125" text-anchor="middle" class="title">Query Router</text><text x="945" y="150" text-anchor="middle" class="small">direct / retrieve / complex</text>
+<rect x="1125" y="90" width="390" height="85" rx="14" class="out"/><text x="1320" y="120" text-anchor="middle" class="title">Final Response (JSON)</text><text x="1320" y="148" text-anchor="middle" class="small">answer • documents • route • score • retries • latency</text>
+<path d="M235 132 L285 132" class="arrow"/><path d="M495 132 L545 132" class="arrow"/><path d="M765 132 L815 132" class="arrow"/><path d="M1075 132 L1125 132" class="arrow"/>
+<!-- decision -->
+<polygon points="945,225 1050,285 945,345 840,285" class="dec"/><text x="945" y="280" text-anchor="middle" class="title">Route Decision</text><text x="945" y="305" text-anchor="middle" class="small">direct / retrieve / complex</text><path d="M945 175 L945 225" class="arrow"/>
+<!-- direct -->
+<rect x="525" y="390" width="230" height="90" rx="14" class="box"/><text x="640" y="425" text-anchor="middle" class="title">Direct Generate</text><text x="640" y="452" text-anchor="middle" class="small">LLM without retrieval</text><path d="M840 285 L640 285 L640 390" class="arrow"/><text x="720" y="276" class="small">DIRECT</text>
+<!-- retrieve -->
+<rect x="830" y="390" width="230" height="90" rx="14" class="box"/><text x="945" y="425" text-anchor="middle" class="title">Retrieve</text><text x="945" y="452" text-anchor="middle" class="small">Embed query → Qdrant top-k</text><path d="M945 345 L945 390" class="arrow"/><text x="965" y="370" class="small">RETRIEVE</text>
+<rect x="830" y="525" width="230" height="90" rx="14" class="box"/><text x="945" y="560" text-anchor="middle" class="title">BGE Reranker</text><text x="945" y="587" text-anchor="middle" class="small">Cross-encoder relevance</text><path d="M945 480 L945 525" class="arrow"/>
+<rect x="830" y="660" width="230" height="90" rx="14" class="box"/><text x="945" y="695" text-anchor="middle" class="title">Retrieval Grader</text><text x="945" y="722" text-anchor="middle" class="small">GOOD / PARTIAL / BAD</text><path d="M945 615 L945 660" class="arrow"/>
+<polygon points="945,790 1045,845 945,900 845,845" class="dec"/><text x="945" y="840" text-anchor="middle" class="title">Good enough?</text><path d="M945 750 L945 790" class="arrow"/>
+<!-- generate -->
+<rect x="515" y="660" width="230" height="90" rx="14" class="box"/><text x="630" y="695" text-anchor="middle" class="title">Generate</text><text x="630" y="722" text-anchor="middle" class="small">LLM with grounded context</text><path d="M845 845 L630 845 L630 750" class="arrow"/><text x="735" y="833" class="small">YES</text>
+<!-- rewrite -->
+<rect x="1120" y="660" width="230" height="90" rx="14" class="box"/><text x="1235" y="695" text-anchor="middle" class="title">Query Rewriter</text><text x="1235" y="722" text-anchor="middle" class="small">Technical query refinement</text><path d="M1045 845 L1235 845 L1235 750" class="arrow"/><text x="1080" y="833" class="small">NO</text>
+<path d="M1235 660 L1235 525 L1060 525" class="arrow"/><text x="1150" y="515" class="small">Retry (max 1)</text>
+<!-- web -->
+<rect x="1120" y="390" width="230" height="90" rx="14" class="tool"/><text x="1235" y="425" text-anchor="middle" class="title">Tavily Web Search</text><text x="1235" y="452" text-anchor="middle" class="small">Fallback after weak retry</text><path d="M1350 660 L1450 660 L1450 435 L1350 435" class="arrow"/><text x="1370" y="420" class="small">still weak</text>
+<path d="M1235 390 L1235 285 L1050 285" class="arrow"/>
+<!-- memory -->
+<ellipse cx="260" cy="390" rx="120" ry="35" class="mem"/><path d="M140 390 L140 470 Q260 510 380 470 L380 390" class="mem"/><ellipse cx="260" cy="470" rx="120" ry="35" class="mem"/><text x="260" y="430" text-anchor="middle" class="title">Conversation State</text><text x="260" y="455" text-anchor="middle" class="small">short-term context</text>
+<ellipse cx="260" cy="575" rx="120" ry="35" class="mem"/><path d="M140 575 L140 665 Q260 705 380 665 L380 575" class="mem"/><ellipse cx="260" cy="665" rx="120" ry="35" class="mem"/><text x="260" y="615" text-anchor="middle" class="title">Stored Context</text><text x="260" y="640" text-anchor="middle" class="small">long-term memory</text>
+<!-- ingestion -->
+<rect x="45" y="820" width="190" height="90" rx="14" class="orch"/><text x="140" y="855" text-anchor="middle" class="title">Repository / Docs</text><text x="140" y="882" text-anchor="middle" class="small">source code, README, docs</text>
+<rect x="285" y="820" width="190" height="90" rx="14" class="orch"/><text x="380" y="855" text-anchor="middle" class="title">AST Chunker</text><text x="380" y="882" text-anchor="middle" class="small">classes / functions</text>
+<rect x="525" y="820" width="190" height="90" rx="14" class="orch"/><text x="620" y="855" text-anchor="middle" class="title">Embeddings</text><text x="620" y="882" text-anchor="middle" class="small">BGE-small-en-v1.5</text>
+<rect x="765" y="820" width="240" height="90" rx="14" class="orch"/><text x="885" y="855" text-anchor="middle" class="title">Qdrant Vector DB</text><text x="885" y="882" text-anchor="middle" class="small">software_docs + metadata</text>
+<path d="M235 865 L285 865" class="arrow"/><path d="M475 865 L525 865" class="arrow"/><path d="M715 865 L765 865" class="arrow"/>
+<!-- external -->
+<rect x="1120" y="840" width="230" height="90" rx="14" class="tool"/><text x="1235" y="875" text-anchor="middle" class="title">Hugging Face API</text><text x="1235" y="902" text-anchor="middle" class="small">Hosted LLM inference</text><path d="M1235 480 L1235 660" class="arrow"/>
+</svg>
